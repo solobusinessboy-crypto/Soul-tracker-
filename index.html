@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Supervisor | Report</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <style>
+        :root { --gold: #D4AF37; --dark: #121212; --glass: rgba(255, 255, 255, 0.1); }
+        body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.8); }
+        h2 { color: var(--gold); text-align: center; margin-bottom: 25px; letter-spacing: 1px; text-transform: uppercase; font-size: 1.2rem; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #bbb; }
+        input, select, textarea { width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid #444; border-radius: 8px; color: white; outline: none; transition: 0.3s; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--gold); }
+        button { width: 100%; padding: 15px; background: var(--gold); border: none; border-radius: 8px; color: black; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #b8962d; transform: translateY(-2px); }
+        button:disabled { background: #555; cursor: not-allowed; }
+        #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; border: 1px solid var(--gold); }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Soul Supervisor Portal</h2>
+    
+    <div class="input-group">
+        <label>Capture Progress</label>
+        <input type="file" id="photoInput" accept="image/*" onchange="previewImg(event)">
+        <img id="preview" alt="Preview">
+    </div>
+
+    <div class="input-group">
+        <label>Select Category</label>
+        <select id="categorySelect">
+            <option value="Villa-Exterior">Villa Exterior</option>
+            <option value="Floor-1">Floor 1</option>
+            <option value="Floor-2">Floor 2</option>
+            <option value="Kitchen-Work">Kitchen Work</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <label>Status Update</label>
+        <textarea id="statusInput" rows="3" placeholder="Write work progress..."></textarea>
+    </div>
+
+    <button id="submitBtn" onclick="sendReport()">SEND REPORT</button>
+</div>
+
+<script>
+    // TERA FIREBASE CONFIG YAHAN DAALNA HAI
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeeq2Dl9FG4eChBYLNlG1VrDSf2qoxWI",
+        authDomain: "soul-architech-tracker.firebaseapp.com",
+        projectId: "soul-architech-tracker",
+        storageBucket: "soul-architech-tracker.firebasestorage.app",
+        messagingSenderId: "425530061134",
+        appId: "1:425530061134:web:1652492c2038673e6c2e1f"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    function previewImg(event) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            const output = document.getElementById('preview');
+            output.src = reader.result;
+            output.style.display = 'block';
+        }
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    async function sendReport() {
+        const file = document.getElementById('photoInput').files[0];
+        const category = document.getElementById('categorySelect').value;
+        const status = document.getElementById('statusInput').value;
+        const btn = document.getElementById('submitBtn');
+
+        if (!file) return alert("Bhai, photo toh select kar le!");
+
+        btn.disabled = true;
+        btn.innerText = "UPLOADING TO SOUL CLOUD...";
+
+        try {
+            const storageRef = storage.ref('reports/' + Date.now() + "_" + file.name);
+            await storageRef.put(file);
+            const url = await storageRef.getDownloadURL();
+
+            await db.collection('reports').add({
+                imageUrl: url,
+                category: category,
+                status: status,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert("Report Sent Successfully! 🔥");
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            alert("Error: " + error.message);
+            btn.disabled = false;
+            btn.innerText = "SEND REPORT";
+        }
+    }
+</script>
+
+</body>
+</html>

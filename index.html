@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Supervisor | Portal</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #bda062; --bg: #0a0a0a; }
+        body { background: var(--bg); color: white; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .box { position: relative; width: 90%; max-width: 400px; padding: 5px; background: #1a1a1a; border-radius: 35px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .box::before { content: ''; position: absolute; width: 150%; height: 150%; background: conic-gradient(transparent, transparent, transparent, var(--gold)); animation: rotate 3s linear infinite; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        .card { background: #1e1f21; padding: 30px; border-radius: 30px; position: relative; z-index: 10; width: 100%; box-sizing: border-box; }
+        h2 { color: var(--gold); text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 25px; font-weight: 700; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 8px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 12px; background: #121212; border: 1px solid #333; border-radius: 12px; color: white; outline: none; box-sizing: border-box; }
+        input[type="range"] { -webkit-appearance: none; height: 6px; background: #333; border-radius: 5px; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--gold); border-radius: 50%; }
+        button { width: 100%; padding: 16px; background: var(--gold); border: none; border-radius: 12px; color: black; font-weight: 800; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        #preview { width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid var(--gold); }
+        .percent-display { color: var(--gold); font-weight: bold; float: right; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div class="card">
+        <h2>Soul Cloud</h2>
+        <div class="input-group">
+            <label>Site Photo</label>
+            <input type="file" id="photoInput" accept="image/*" onchange="previewImg(event)">
+            <img id="preview">
+        </div>
+        <div class="input-group">
+            <label>Progress <span id="progVal" class="percent-display">50%</span></label>
+            <input type="range" id="progSlider" min="0" max="100" value="50" oninput="document.getElementById('progVal').innerText = this.value + '%'">
+        </div>
+        <div class="input-group">
+            <label>Category</label>
+            <select id="categorySelect">
+                <option value="Villa-Exterior">Villa Exterior</option>
+                <option value="Floor-1">Floor 1</option>
+                <option value="Floor-2">Floor 2</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Status</label>
+            <textarea id="statusInput" rows="2" placeholder="Update?"></textarea>
+        </div>
+        <button id="submitBtn" onclick="sendReport()">Push to Soul Site</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeeq2Dl9FG4eChBYLNlG1VrDSf2qoxWI",
+        authDomain: "soul-architech-tracker.firebaseapp.com",
+        projectId: "soul-architech-tracker",
+        storageBucket: "soul-architech-tracker.firebasestorage.app",
+        messagingSenderId: "425530061134",
+        appId: "1:425530061134:web:1652492c2038673e6c2e1f"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function previewImg(event) {
+        const out = document.getElementById('preview');
+        out.src = URL.createObjectURL(event.target.files[0]);
+        out.style.display = 'block';
+    }
+
+    async function sendReport() {
+        const file = document.getElementById('photoInput').files[0];
+        const btn = document.getElementById('submitBtn');
+        if (!file) return alert("Photo kahan hai bhai?");
+
+        btn.disabled = true;
+        btn.innerText = "Resizing Photo...";
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = async () => {
+                // FIXED: PHOTO RESIZING & COMPRESSION LOGIC
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_SIZE = 800;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                } else {
+                    if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Quality 0.5 (50%) - Document limit kabhi touch nahi hogi
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+
+                btn.innerText = "Uploading...";
+                try {
+                    await db.collection('reports').add({
+                        imageUrl: compressedBase64,
+                        category: document.getElementById('categorySelect').value,
+                        status: document.getElementById('statusInput').value,
+                        progress: parseInt(document.getElementById('progSlider').value),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert("Soul Dashboard Updated! 🔥");
+                    location.reload();
+                } catch (err) { 
+                    alert("Limit Error: Photo size still too big! Try another."); 
+                    console.error(err);
+                    btn.disabled = false; 
+                    btn.innerText = "Push to Soul Site";
+                }
+            }
+        }
+    }
+</script>
+</body>
+  </html>

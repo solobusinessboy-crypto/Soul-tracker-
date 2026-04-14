@@ -37,26 +37,50 @@
             <img id="preview">
         </div>
         <div class="input-group">
-            <label>Progress <span id="progVal" class="percent-display">50%</span></label>
-            <input type="range" id="progSlider" min="0" max="100" value="50" oninput="document.getElementById('progVal').innerText = this.value + '%'">
+            <label>Progress <span id="progVal" class="percent-display">0%</span></label>
+            <input type="range" id="progSlider" min="0" max="100" value="0" oninput="document.getElementById('progVal').innerText = this.value + '%'">
         </div>
         <div class="input-group">
             <label>Category</label>
             <select id="categorySelect">
                 <option value="Villa-Exterior">Villa Exterior</option>
+                <option value="Ground floor-Hall+pool">Group floor Hall +pool</option>
                 <option value="Floor-1">Floor 1</option>
                 <option value="Floor-2">Floor 2</option>
+                <option value="Floor-Balcony-3">Floor Balcony 3</option>
+                <option value="Terrace-4">Terrace 4</option>
                 <option value="House-Exterior">House Exterior</option>
+                <option value="Ground Floor-Hall">Group Floor Hall</option>
                 <option value="Floor-1">Floor 1</option>
                 <option value="Floor-2">Floor 2</option>
                 <option value="Floor-3">Floor 3</option>
+                <option value="Terrace-4">Terrace 4</option>
+                <option value="Building-Exterior">Building Exterior</option>
+                <option value="Ground Floor-Hall-Reception">Group Floor Hall +Reception</option>
+                <option value="Floor-1">Floor 1</option>
+                <option value="Floor-2">Floor 2</option>
+                <option value="Floor-3">Floor 3</option>
+                <option value="Floor-4">Floor 4</option>
+                <option value="Floor-5">Floor 5</option>
+                <option value="Floor-6">Floor 6</option>
+                <option value="Floor-7">Floor 7</option>
+                <option value="Floor-8">Floor 8</option>
+                <option value="Floor-9">Floor 9</option>
+                <option value="Floor-10">Floor 10</option>
+                <option value="Terrace-11">Terrace 11</option>
+                <option value="Commercial Mall-Exterior">Commercial Mall Exterior</option>
+                <option value="Ground floor-Hall">Group floor Hall</option>
+                <option value="Floor-1">Floor 1</option>
+                <option value="Floor-2">Floor 2</option>
+                <option value="Floor-3">Floor 3</option>
+                <option value="Terrace-4">Terrace 4</option>
             </select>
         </div>
         <div class="input-group">
             <label>Status</label>
             <textarea id="statusInput" rows="2" placeholder="Update?"></textarea>
         </div>
-        <button id="submitBtn" onclick="sendReport()">Push to Soul Site</button>
+        <button id="submitBtn" onclick="sendReport()">Send Report</button>
     </div>
 </div>
 
@@ -81,7 +105,7 @@
     async function sendReport() {
         const file = document.getElementById('photoInput').files[0];
         const btn = document.getElementById('submitBtn');
-        if (!file) return alert("Photo kahan hai bhai?");
+        if (!file) return alert("Photo toh daal bhai?");
 
         btn.disabled = true;
         btn.innerText = "Resizing Photo...";
@@ -109,8 +133,8 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Quality 0 (0%) - Document limit kabhi touch nahi hogi
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0);
+                // Quality 0.5 (50%) - Document limit kabhi touch nahi hogi
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
 
                 btn.innerText = "Uploading...";
                 try {

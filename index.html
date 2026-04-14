@@ -46,6 +46,10 @@
                 <option value="Villa-Exterior">Villa Exterior</option>
                 <option value="Floor-1">Floor 1</option>
                 <option value="Floor-2">Floor 2</option>
+                <option value="House-Exterior">House Exterior</option>
+                <option value="Floor-1">Floor 1</option>
+                <option value="Floor-2">Floor 2</option>
+                <option value="Floor-3">Floor 3</option>
             </select>
         </div>
         <div class="input-group">
@@ -105,8 +109,8 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Quality 0.5 (50%) - Document limit kabhi touch nahi hogi
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                // Quality 0 (0%) - Document limit kabhi touch nahi hogi
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0);
 
                 btn.innerText = "Uploading...";
                 try {
@@ -117,13 +121,13 @@
                         progress: parseInt(document.getElementById('progSlider').value),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    alert("Soul Dashboard Updated! 🔥");
+                    alert("Soul Dashboard Updated Boss! 🔥");
                     location.reload();
                 } catch (err) { 
                     alert("Limit Error: Photo size still too big! Try another."); 
                     console.error(err);
                     btn.disabled = false; 
-                    btn.innerText = "Push to Soul Site";
+                    btn.innerText = "Send Report";
                 }
             }
         }

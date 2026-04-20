@@ -22,7 +22,7 @@
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--gold); border-radius: 50%; }
         button { width: 100%; padding: 16px; background: var(--gold); border: none; border-radius: 12px; color: black; font-weight: 800; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
         button:disabled { background: #444; color: #888; cursor: not-allowed; }
-        #preview { width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid var(--gold); }
+        #preview, #videoPreview { width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid var(--gold); }
         .percent-display { color: var(--gold); font-weight: bold; float: right; }
     </style>
 </head>
@@ -32,9 +32,10 @@
     <div class="card">
         <h2>Soul Cloud</h2>
         <div class="input-group">
-            <label>Site Photo</label>
-            <input type="file" id="photoInput" accept="image/*" onchange="previewImg(event)">
+            <label>Site Photo / Video</label>
+            <input type="file" id="photoInput" accept="image/*,video/*" onchange="previewMedia(event)">
             <img id="preview">
+            <video id="videoPreview" controls></video>
         </div>
         <div class="input-group">
             <label>Progress <span id="progVal" class="percent-display">0%</span></label>
@@ -51,28 +52,8 @@
                 <option value="Terrace-4">Terrace 4</option>
                 <option value="House-Exterior">House Exterior</option>
                 <option value="Ground Floor-Hall">Ground Floor Hall</option>
-                <option value="Floor-1">Floor 1</option>
-                <option value="Floor-2">Floor 2</option>
-                <option value="Floor-3">Floor 3</option>
-                <option value="Terrace-4">Terrace 4</option>
                 <option value="Building-Exterior">Building Exterior</option>
-                <option value="Ground Floor-Hall-Reception">Ground Floor Hall +Reception</option>
-                <option value="Floor-1">Floor 1</option>
-                <option value="Floor-2">Floor 2</option>
-                <option value="Floor-3">Floor 3</option>
-                <option value="Floor-4">Floor 4</option>
-                <option value="Floor-5">Floor 5</option>
-                <option value="Floor-6">Floor 6</option>
-                <option value="Floor-7">Floor 7</option>
-                <option value="Floor-8">Floor 8</option>
-                <option value="Floor-9">Floor 9</option>
-                <option value="Floor-10">Floor 10</option>
-                <option value="Terrace-11">Terrace 11</option>
                 <option value="Commercial Mall-Exterior">Commercial Mall Exterior</option>
-                <option value="Ground floor-Hall">Ground floor Hall</option>
-                <option value="Floor-1">Floor 1</option>
-                <option value="Floor-2">Floor 2</option>
-                <option value="Floor-3">Floor 3</option>
                 <option value="Terrace-4">Terrace 4</option>
             </select>
         </div>
@@ -96,66 +77,88 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    function previewImg(event) {
-        const out = document.getElementById('preview');
-        out.src = URL.createObjectURL(event.target.files[0]);
-        out.style.display = 'block';
+    function previewMedia(event) {
+        const file = event.target.files[0];
+        const imgOut = document.getElementById('preview');
+        const vidOut = document.getElementById('videoPreview');
+        
+        imgOut.style.display = 'none';
+        vidOut.style.display = 'none';
+
+        if (file.type.startsWith('image/')) {
+            imgOut.src = URL.createObjectURL(file);
+            imgOut.style.display = 'block';
+        } else if (file.type.startsWith('video/')) {
+            vidOut.src = URL.createObjectURL(file);
+            vidOut.style.display = 'block';
+        }
     }
 
     async function sendReport() {
         const file = document.getElementById('photoInput').files[0];
         const btn = document.getElementById('submitBtn');
-        if (!file) return alert("Photo toh daal bhai?");
+        if (!file) return alert("Media toh daal bhai?");
 
         btn.disabled = true;
-        btn.innerText = "Resizing Photo...";
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-            const img = new Image();
-            img.src = e.target.result;
-            img.onload = async () => {
-                // FIXED: PHOTO RESIZING & COMPRESSION LOGIC
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const MAX_SIZE = 800;
-
-                if (width > height) {
-                    if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-                } else {
-                    if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+        
+        // Agar Video hai toh direct Base64
+        if (file.type.startsWith('video/')) {
+            btn.innerText = "Processing Video...";
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async (e) => {
+                uploadData(e.target.result);
+            };
+        } 
+        // Agar Photo hai toh wahi purana Resizing logic
+        else {
+            btn.innerText = "Resizing Photo...";
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = async () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_SIZE = 800;
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                    uploadData(compressedBase64);
                 }
+            }
+        }
 
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // Quality 0.5 (50%) - Document limit kabhi touch nahi hogi
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
-
-                btn.innerText = "Uploading...";
-                try {
-                    await db.collection('reports').add({
-                        imageUrl: compressedBase64,
-                        category: document.getElementById('categorySelect').value,
-                        status: document.getElementById('statusInput').value,
-                        progress: parseInt(document.getElementById('progSlider').value),
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    alert("Soul Dashboard Updated Boss! 🔥");
-                    location.reload();
-                } catch (err) { 
-                    alert("Limit Error: Photo size still too big! Try another."); 
-                    console.error(err);
-                    btn.disabled = false; 
-                    btn.innerText = "Send Report";
-                }
+        async function uploadData(base64Data) {
+            btn.innerText = "Uploading...";
+            try {
+                await db.collection('reports').add({
+                    imageUrl: base64Data, // Video ya Image ka data yahi jayega
+                    category: document.getElementById('categorySelect').value,
+                    status: document.getElementById('statusInput').value,
+                    progress: parseInt(document.getElementById('progSlider').value),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    type: file.type.split('/')[0] // 'image' ya 'video' save karne ke liye
+                });
+                alert("Soul Dashboard Updated Boss! 🔥");
+                location.reload();
+            } catch (err) { 
+                alert("Error: Size too big! Try a shorter video."); 
+                console.error(err);
+                btn.disabled = false; 
+                btn.innerText = "Send Report";
             }
         }
     }
 </script>
 </body>
-  </html>
+</html>

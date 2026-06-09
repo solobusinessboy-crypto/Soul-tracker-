@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Supervisor | Portal</title>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins:200,300,400,500,600,700,800,900&display=swap">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.1/css/all.css">
+
+    <style>
+        /* ══ BASE ══ */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+        body { background: #0f151b; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
+
+        @property --a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+        /* ══ GOLDEN BOX (Auth screens) ══ */
+        .gold-box {
+            position: relative; width: 400px; height: 200px;
+            background: repeating-conic-gradient(from var(--a), #ffd700 0%, #ffd700 5%, transparent 5%, transparent 40%, #ffd700 50%);
+            filter: drop-shadow(0 15px 50px #000);
+            border-radius: 20px;
+            animation: rotating 4s linear infinite;
+            display: flex; justify-content: center; align-items: center;
+            transition: height 0.5s ease, width 0.5s ease;
+        }
+        @keyframes rotating { 0% { --a: 0deg; } 100% { --a: 360deg; } }
+        .gold-box::before {
+            content: ""; position: absolute; width: 100%; height: 100%;
+            background: repeating-conic-gradient(from var(--a), #daa520 0%, #daa520 5%, transparent 5%, transparent 40%, #daa520 50%);
+            border-radius: 20px; animation: rotating 4s linear infinite; animation-delay: -1s;
+        }
+        .gold-box::after {
+            content: ""; position: absolute; inset: 4px;
+            background: #1a1a23; border-radius: 15px; border: 8px solid #15151b;
+        }
+        .gold-box.expanded { height: auto; min-height: 520px; width: 420px; }
+
+        .gold-login {
+            position: absolute; inset: 60px;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05); backdrop-filter: blur(15px);
+            color: #fff; z-index: 1000;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            transition: inset 0.5s; overflow: hidden;
+        }
+        .gold-box.expanded .gold-login { inset: 14px; }
+
+        .gold-inner {
+            width: 80%; display: flex; flex-direction: column; gap: 12px;
+            transform: translateY(110px); transition: transform 0.5s;
+        }
+        .gold-box.expanded .gold-inner { transform: translateY(0); }
+
+        /* ══ AUTH FORM ══ */
+        .auth-title { text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: #fff; font-size: 17px; text-align: center; }
+        .auth-title i { color: #ffd700; text-shadow: 0 0 15px #ffd700; margin-right: 8px; }
+
+        .auth-tabs { display: flex; gap: 8px; }
+        .auth-tab {
+            flex: 1; padding: 8px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+            color: #888; cursor: pointer; text-align: center; font-size: 11px;
+            font-weight: 600; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .auth-tab.active { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.08); }
+
+        /* Password Wrapper Container */
+        .pass-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .pass-wrapper i {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            cursor: pointer;
+            transition: color 0.2s;
+            font-size: 14px;
+            z-index: 10;
+        }
+        .pass-wrapper i:hover {
+            color: #ffd700;
+        }
+
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%; padding: 11px 18px; outline: none; border: none;
+            font-size: 0.88em; color: #fff;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px; transition: 0.3s; font-family: 'Poppins', sans-serif;
+        }
+        /* Extra padding-right for password fields to look clean with the eye icon */
+        .pass-wrapper input {
+            padding-right: 45px;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus {
+            border-color: #ffd700; box-shadow: 0 0 10px rgba(255,215,0,0.2);
+        }
+        .code-input { text-transform: uppercase !important; letter-spacing: 3px !important; text-align: center !important; }
+
+        .btn-submit {
+            width: 100%; padding: 12px; background: #ffd700;
+            border: none; border-radius: 30px; color: #000;
+            font-weight: 700; cursor: pointer; font-size: 0.9em;
+            transition: 0.3s; letter-spacing: 0.05em; font-family: 'Poppins', sans-serif;
+        }
+        .btn-submit:hover { box-shadow: 0 0 20px #ffd700; letter-spacing: 0.1em; }
+        .btn-submit:disabled { background: #444; color: #888; cursor: not-allowed; box-shadow: none; }
+
+        .auth-links { display: flex; justify-content: space-between; font-size: 0.7em; }
+        .auth-links a { color: #aaa; text-decoration: none; cursor: pointer; transition: 0.3s; }
+        .auth-links a:hover { color: #fff; }
+        .auth-links a.gold { color: #ffd700; font-weight: 600; }
+
+        .auth-msg { font-size: 11px; text-align: center; padding: 7px 12px; border-radius: 20px; display: none; margin-top: 4px; }
+        .auth-msg.error   { background: rgba(220,53,69,0.15);  color: #ff6b7a; display: block; }
+        .auth-msg.success { background: rgba(40,167,69,0.15);  color: #5fdd7e; display: block; }
+        .code-hint { font-size: 10px; color: #555; text-align: center; }
+
+        /* ══ LOADING ══ */
+        .loading-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75); z-index: 9999;
+            align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+        }
+        .loading-overlay.active { display: flex; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #ffd700; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .loading-overlay p { color: #888; font-size: 13px; letter-spacing: 1px; }
+
+        /* ══ SCREENS ══ */
+        .screen { display: none; width: 100%; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .screen.active { display: flex; }
+
+        /* ══ BLOCKED ══ */
+        .blocked-wrap { position: relative; width: 90%; max-width: 400px; padding: 5px; background: #1a1a1a; border-radius: 35px; overflow: hidden; }
+        .blocked-wrap::before {
+            content: ''; position: absolute; width: 150%; height: 150%; top: -25%; left: -25%;
+            background: conic-gradient(transparent, transparent, transparent, #ffd700);
+            animation: rotateConic 3s linear infinite;
+        }
+        @keyframes rotateConic { 100% { transform: rotate(360deg); } }
+        .blocked-card { background: #1e1f21; padding: 40px 28px; border-radius: 30px; position: relative; z-index: 10; text-align: center; }
+        .blocked-card .lock-icon { font-size: 50px; margin-bottom: 14px; }
+        .blocked-card h3 { color: #ffd700; font-size: 17px; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
+        .blocked-card p { color: #666; font-size: 12px; line-height: 1.7; }
+        .blocked-card .btn-logout { margin-top: 22px; width: 100%; padding: 12px; background: transparent; border: 1px solid #333; border-radius: 20px; color: #888; cursor: pointer; font-size: 12px; transition: all 0.3s; }
+        .blocked-card .btn-logout:hover { border-color: #ffd700; color: #ffd700; }
+
+        /* ══ DASHBOARD — ORIGINAL STYLES PRESERVED ══ */
+        :root { --gold: #bda062; --bg: #0a0a0a; }
+
+        .dash-wrap { position: relative; width: 90%; max-width: 400px; padding: 5px; background: #1a1a1a; border-radius: 35px; overflow: hidden; }
+        .dash-wrap::before {
+            content: ''; position: absolute; width: 150%; height: 150%; top: -25%; left: -25%;
+            background: conic-gradient(transparent, transparent, transparent, var(--gold));
+            animation: rotateConic 3s linear infinite;
+        }
+        .dash-card { background: #1e1f21; padding: 28px; border-radius: 30px; position: relative; z-index: 10; width: 100%; box-sizing: border-box; }
+
+        /* Original dashboard header */
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #2a2a2a; }
+        .dash-user { font-size: 12px; color: #888; line-height: 1.5; }
+        .dash-user span { color: var(--gold); font-weight: 700; display: block; font-size: 14px; }
+        .dash-user small { color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-logout-dash { background: transparent; border: 1px solid #333; border-radius: 10px; color: #888; padding: 5px 12px; cursor: pointer; font-size: 11px; font-family: 'Poppins', sans-serif; transition: all 0.2s; }
+        .btn-logout-dash:hover { border-color: #dc3545; color: #dc3545; }
+
+        /* ══ ORIGINAL CARD STYLES ══ */
+        .dash-card h2 { color: var(--gold); text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 25px; font-weight: 700; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 8px; text-transform: uppercase; }
+
+        .dash-card input[type="file"],
+        .dash-card select,
+        .dash-card textarea {
+            width: 100%; padding: 12px; background: #121212; border: 1px solid #333;
+            border-radius: 12px; color: white; outline: none; box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        .dash-card input[type="range"] { -webkit-appearance: none; height: 6px; background: #333; border-radius: 5px; cursor: pointer; padding: 0; border: none; width: 100%; }
+        .dash-card input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--gold); border-radius: 50%; }
+
+        .percent-display { color: var(--gold); font-weight: bold; float: right; }
+
+        #preview { width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid var(--gold); }
+
+        #submitBtn {
+            width: 100%; padding: 16px; background: var(--gold); border: none;
+            border-radius: 12px; color: black; font-weight: 800; cursor: pointer;
+            margin-top: 10px; text-transform: uppercase; font-family: 'Poppins', sans-serif;
+            transition: opacity 0.2s;
+        }
+        #submitBtn:disabled { background: #444; color: #888; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loading-msg">Verifying access...</p>
+</div>
+
+<div class="screen active" id="screen-auth">
+    <div class="gold-box" id="gold-box">
+        <div class="gold-login">
+            <div class="gold-inner" id="gold-inner">
+
+                <div class="auth-title">
+                    <i class="fa-solid fa-lock"></i> Soul Cloud
+                </div>
+
+                <div class="auth-tabs">
+                    <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+                    <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
+                </div>
+
+                <div id="form-login">
+                    <input type="email" id="login-email" placeholder="Email">
+                    
+                    <div class="pass-wrapper" style="margin-top:10px;">
+                        <input type="password" id="login-pass" placeholder="Password">
+                        <i class="fa-solid fa-eye" id="toggle-login-pass" onclick="togglePasswordVisibility('login-pass', 'toggle-login-pass')"></i>
+                    </div>
+
+                    <button class="btn-submit" id="login-btn" onclick="doLogin()" style="margin-top:12px;">Sign In</button>
+                    <div class="auth-links" style="margin-top:10px;">
+                        <a onclick="forgotPassword()">Forgot Password?</a>
+                        <a class="gold" onclick="switchTab('signup')">Sign up →</a>
+                    </div>
+                    <div class="auth-msg" id="login-msg"></div>
+                </div>
+
+                <div id="form-signup" style="display:none;">
+                    <input type="text" id="signup-name" placeholder="Your Name">
+                    <input type="email" id="signup-email" placeholder="Email" style="margin-top:10px;">
+                    
+                    <div class="pass-wrapper" style="margin-top:10px;">
+                        <input type="password" id="signup-pass" placeholder="Password (min 6 chars)">
+                        <i class="fa-solid fa-eye" id="toggle-signup-pass" onclick="togglePasswordVisibility('signup-pass', 'toggle-signup-pass')"></i>
+                    </div>
+
+                    <input type="text" id="signup-code" placeholder="SECRET PROJECT CODE" class="code-input" style="margin-top:10px;">
+                    <div class="code-hint">Get this code from your contractor</div>
+                    <button class="btn-submit" id="signup-btn" onclick="doSignup()" style="margin-top:12px;">Create Account</button>
+                    <div class="auth-links" style="margin-top:10px;">
+                        <a onclick="switchTab('login')">← Back to Login</a>
+                    </div>
+                    <div class="auth-msg" id="signup-msg"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="screen" id="screen-blocked">
+    <div class="blocked-wrap">
+        <div class="blocked-card">
+            <div class="lock-icon">🔒</div>
+            <h3>Access Restricted</h3>
+            <p>Supervisor PWA access is based on your contractor's plan. Contact your contractor to resolve this.</p>
+            <br>
+            <p style="font-size:11px; color:#444;">Free: 1 account · Pro: 6 accounts · Elite: Unlimited</p>
+            <button class="btn-logout" onclick="doLogout()">← Back to Login</button>
+        </div>
+    </div>
+</div>
+
+<div class="screen" id="screen-dashboard">
+    <div class="dash-wrap">
+        <div class="dash-card">
+
+            <div class="dash-header">
+                <div class="dash-user">
+                    <span id="dash-name">Supervisor</span>
+                    <small id="dash-plan">— plan</small>
+                </div>
+                <button class="btn-logout-dash" onclick="doLogout()">Logout</button>
+            </div>
+
+            <h2>Soul Cloud</h2>
+
+            <div class="input-group">
+                <label>Site Photo</label>
+                <input type="file" id="photoInput" accept="image/*" onchange="previewImg(event)">
+                <img id="preview">
+            </div>
+
+            <div class="input-group">
+                <label>Progress <span id="progVal" class="percent-display">0%</span></label>
+                <input type="range" id="progSlider" min="0" max="100" value="0" oninput="document.getElementById('progVal').innerText = this.value + '%'">
+            </div>
+
+            <div class="input-group">
+                <label>Category</label>
+                <select id="categorySelect">
+                    <option value="Villa-Exterior">Villa Exterior</option>
+                    <option value="Ground Floor-Hall+pool">Ground Floor Hall +pool</option>
+                    <option value="Floor-1">Floor 1</option>
+                    <option value="Floor-2">Floor 2</option>
+                    <option value="Floor-Balcony-3">Floor Balcony 3</option>
+                    <option value="Terrace-4">Terrace 4</option>
+                    <option value="House-Exterior">House Exterior</option>
+                    <option value="Ground Floor-Hall">Ground Floor Hall</option>
+                    <option value="Floor-1">Floor 1</option>
+                    <option value="Floor-2">Floor 2</option>
+                    <option value="Floor-3">Floor 3</option>
+                    <option value="Terrace-4">Terrace 4</option>
+                    <option value="Building-Exterior">Building Exterior</option>
+                    <option value="Ground Floor-Hall-Reception">Ground Floor Hall +Reception</option>
+                    <option value="Floor-1">Floor 1</option>
+                    <option value="Floor-2">Floor 2</option>
+                    <option value="Floor-3">Floor 3</option>
+                    <option value="Floor-4">Floor 4</option>
+                    <option value="Floor-5">Floor 5</option>
+                    <option value="Floor-6">Floor 6</option>
+                    <option value="Floor-7">Floor 7</option>
+                    <option value="Floor-8">Floor 8</option>
+                    <option value="Floor-9">Floor 9</option>
+                    <option value="Floor-10">Floor 10</option>
+                    <option value="Terrace-11">Terrace 11</option>
+                    <option value="Commercial Mall-Exterior">Commercial Mall Exterior</option>
+                    <option value="Ground floor-Hall">Ground floor Hall</option>
+                    <option value="Floor-1">Floor 1</option>
+                    <option value="Floor-2">Floor 2</option>
+                    <option value="Floor-3">Floor 3</option>
+                    <option value="Terrace-4">Terrace 4</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Status</label>
+                <textarea id="statusInput" rows="2" placeholder="Update?"></textarea>
+            </div>
+
+            <button id="submitBtn" onclick="sendReport()">Send Report</button>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ════════════════════════════════════
+       FIREBASE INIT — Original config
+    ════════════════════════════════════ */
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeeq2Dl9FG4eChBYLNlG1VrDSf2qoxWI",
+        authDomain: "soul-architech-tracker.firebaseapp.com",
+        projectId: "soul-architech-tracker",
+        storageBucket: "soul-architech-tracker.firebasestorage.app",
+        messagingSenderId: "425530061134",
+        appId: "1:425530061134:web:1652492c2038673e6c2e1f"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db   = firebase.firestore();
+    const auth = firebase.auth();
+
+    const TIER_LIMITS = { free: 1, pro: 6, elite: Infinity };
+
+    /* ════════════════════════════════════
+       PASSWORD TOGGLE EYE FUNCTION
+    ════════════════════════════════════ */
+    function togglePasswordVisibility(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+
+    /* ════════════════════════════════════
+       HELPERS
+    ════════════════════════════════════ */
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+    function showLoading(msg) {
+        document.getElementById('loading-msg').innerText = msg || 'Loading...';
+        document.getElementById('loading-overlay').classList.add('active');
+    }
+    function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
+    function showMsg(id, text, type) {
+        const el = document.getElementById(id);
+        el.innerText = text; el.className = 'auth-msg ' + type;
+    }
+    function switchTab(tab) {
+        document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+        document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+        document.getElementById('form-login').style.display  = tab === 'login'  ? 'block' : 'none';
+        document.getElementById('form-signup').style.display = tab === 'signup' ? 'block' : 'none';
+    }
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const box = document.getElementById('gold-box');
+            if (box) box.classList.add('expanded');
+        }, 300);
+    });
+
+    /* ════════════════════════════════════
+       AUTH STATE
+    ════════════════════════════════════ */
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) { hideLoading(); showScreen('screen-auth'); return; }
+        showLoading('Checking access...');
+        try {
+            const supDoc = await db.collection('supervisors').doc(user.uid).get();
+            if (!supDoc.exists) { await auth.signOut(); hideLoading(); showScreen('screen-auth'); return; }
+            const data = supDoc.data();
+            const tier = data.tier || 'free';
+            hideLoading();
+            document.getElementById('dash-name').innerText = data.name || user.email;
+            const tierLabels = { free: 'FREE PLAN', pro: 'BUSINESS PRO', elite: 'ELITE ENTERPRISE' };
+            document.getElementById('dash-plan').innerText = tierLabels[tier] || tier.toUpperCase();
+            showScreen('screen-dashboard');
+        } catch(e) {
+            hideLoading(); console.error(e); showScreen('screen-auth');
+        }
+    });
+
+    /* ════════════════════════════════════
+       LOGIN
+    ════════════════════════════════════ */
+    async function doLogin() {
+        const email = document.getElementById('login-email').value.trim();
+        const pass  = document.getElementById('login-pass').value;
+        if (!email || !pass) { showMsg('login-msg', 'Please fill all fields.', 'error'); return; }
+        document.getElementById('login-btn').disabled = true;
+        showLoading('Signing in...');
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+        } catch(e) {
+            hideLoading();
+            document.getElementById('login-btn').disabled = false;
+            const errs = {
+                'auth/user-not-found': 'No account found with this email.',
+                'auth/wrong-password': 'Incorrect password.',
+                'auth/invalid-email':  'Invalid email address.',
+                'auth/too-many-requests': 'Too many attempts. Please try later.'
+            };
+            showMsg('login-msg', errs[e.code] || 'Login failed. Try again.', 'error');
+        }
+    }
+
+    /* ════════════════════════════════════
+       SIGNUP
+    ════════════════════════════════════ */
+    async function doSignup() {
+        const name  = document.getElementById('signup-name').value.trim();
+        const email = document.getElementById('signup-email').value.trim();
+        const pass  = document.getElementById('signup-pass').value;
+        const code  = document.getElementById('signup-code').value.trim().toUpperCase();
+
+        if (!name || !email || !pass || !code) { showMsg('signup-msg', 'All fields are required.', 'error'); return; }
+        if (pass.length < 6) { showMsg('signup-msg', 'Password must be at least 6 characters.', 'error'); return; }
+
+        document.getElementById('signup-btn').disabled = true;
+        showLoading('Verifying pool limits...');
+
+        try {
+            const codeDoc = await db.collection('projectCodes').doc(code).get();
+            if (!codeDoc.exists) {
+                hideLoading();
+                document.getElementById('signup-btn').disabled = false;
+                showMsg('signup-msg', '❌ Invalid Project Code. Get it from your contractor.', 'error');
+                return;
+            }
+
+            const codeData     = codeDoc.data();
+            const contractorId = codeData.contractorId || '';
+            const tier         = codeData.tier || 'free';
+            const currentTierLimit = TIER_LIMITS[tier] ?? 1;
+
+            const poolSnap = await db.collection('supervisors')
+                                     .where('contractorId', '==', contractorId)
+                                     .get();
+
+            if (poolSnap.size >= currentTierLimit) {
+                hideLoading();
+                document.getElementById('signup-btn').disabled = false;
+                window.alert(`⚠️ Limit reached for your current plan! Please upgrade your plan to unlock more.`);
+                showMsg('signup-msg', `⚠️ Pool limit reached (${currentTierLimit} max) for this plan.`, 'error');
+                return;
+            }
+
+            const cred = await auth.createUserWithEmailAndPassword(email, pass);
+            await db.collection('supervisors').doc(cred.user.uid).set({
+                name,
+                email,
+                projectCode: code,
+                contractorId: contractorId,
+                tier,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showMsg('signup-msg', '✅ Account created! Logging you in...', 'success');
+
+        } catch(e) {
+            hideLoading();
+            document.getElementById('signup-btn').disabled = false;
+            const errs = {
+                'auth/email-already-in-use': 'This email is already registered.',
+                'auth/invalid-email':        'Invalid email address.',
+                'auth/weak-password':        'Password too weak.'
+            };
+            showMsg('signup-msg', errs[e.code] || 'Signup failed. Try again.', 'error');
+        }
+    }
+
+    /* ════════════════════════════════════
+       FORGOT PASSWORD
+    ════════════════════════════════════ */
+    async function forgotPassword() {
+        const email = document.getElementById('login-email').value.trim();
+        if (!email) { showMsg('login-msg', 'Enter your email first.', 'error'); return; }
+        try {
+            await auth.sendPasswordResetEmail(email);
+            showMsg('login-msg', '✅ Reset link sent! Check your email.', 'success');
+        } catch(e) {
+            showMsg('login-msg', 'Could not send reset email. Check the address.', 'error');
+        }
+    }
+
+    /* ════════════════════════════════════
+       LOGOUT
+    ════════════════════════════════════ */
+    async function doLogout() {
+        showLoading('Logging out...');
+        await auth.signOut();
+        hideLoading();
+        const box = document.getElementById('gold-box');
+        if (box) box.classList.add('expanded');
+        showScreen('screen-auth');
+    }
+
+    /* ════════════════════════════════════
+       SUPERVISOR UPLOAD
+    ════════════════════════════════════ */
+    function previewImg(event) {
+        const out = document.getElementById('preview');
+        out.src = URL.createObjectURL(event.target.files[0]);
+        out.style.display = 'block';
+    }
+
+    async function sendReport() {
+        const file = document.getElementById('photoInput').files[0];
+        const btn  = document.getElementById('submitBtn');
+        if (!file) return alert("Photo toh daal bhai?");
+        btn.disabled = true; btn.innerText = "Resizing Photo...";
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image(); img.src = e.target.result;
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width, height = img.height;
+                const MAX_SIZE = 800;
+                if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
+                else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+                canvas.width = width; canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                btn.innerText = "Uploading...";
+                try {
+                    await db.collection('reports').add({
+                        imageUrl: compressedBase64,
+                        category: document.getElementById('categorySelect').value,
+                        status:   document.getElementById('statusInput').value,
+                        progress: parseInt(document.getElementById('progSlider').value),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert("Soul Dashboard Updated Boss! 🔥");
+                    location.reload();
+                } catch(err) {
+                    alert("Limit Error: Photo size still too big! Try another.");
+                    console.error(err);
+                    btn.disabled = false; btn.innerText = "Send Report";
+                }
+            }
+        }
+    }
+</script>
+</body>
+</html>
